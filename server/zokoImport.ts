@@ -114,7 +114,18 @@ app.post('/api/admin/episodes/import-zoko', requireAdmin, async (req: Authentica
             .eq('episode_id', episodeRecord.id);
 
           const zokoIds = (existingServers || [])
-            .filter((s: any) => String(s.server_name || '').toLowerCase().includes('zokoanime'))
+            .filter((s: any) => {
+              const name = String(s.server_name || '').toLowerCase();
+              return (
+                name.includes('zokoanime') ||
+                name === 'sub' ||
+                name === 'dub' ||
+                name === 'hard-sub' ||
+                name === 'player 1' ||
+                name === 'hd-1' ||
+                name === 'server a'
+              );
+            })
             .map((s: any) => s.id);
 
           if (zokoIds.length > 0) {
@@ -133,10 +144,10 @@ app.post('/api/admin/episodes/import-zoko', requireAdmin, async (req: Authentica
           const language: 'sub' | 'dub' = track === 'dub' ? 'dub' : 'sub';
           const serverName =
             track === 'hsub'
-              ? 'ZokoAnime Hard-Sub'
+              ? 'Server A'
               : track === 'dub'
-                ? 'ZokoAnime DUB'
-                : 'ZokoAnime SUB';
+                ? 'HD-1'
+                : 'Player 1';
           const embed_url = `https://zokoanime.video/stream/mal/${malId}/${ep}/${track}?color=${accent}&autonext=1`;
 
           if (!overwrite) {
