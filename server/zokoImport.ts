@@ -22,7 +22,13 @@ app.post('/api/admin/episodes/import-zoko', requireAdmin, async (req: Authentica
 
     const malId = Number(anime_mal_id);
     const from = Number(from_episode);
-    const to = Number(to_episode);
+    // Allow single-episode import: if to_episode is omitted/invalid, default to from
+    let to = to_episode === undefined || to_episode === null || to_episode === ''
+      ? from
+      : Number(to_episode);
+    if (isNaN(to) || to < from) {
+      to = from;
+    }
 
     if (!malId || isNaN(malId) || malId <= 0) {
       return res.status(400).json({ error: 'Valid anime_mal_id (MAL ID) is required.' });
@@ -30,8 +36,9 @@ app.post('/api/admin/episodes/import-zoko', requireAdmin, async (req: Authentica
     if (!from || isNaN(from) || from < 1) {
       return res.status(400).json({ error: 'from_episode must be a number >= 1.' });
     }
-    if (!to || isNaN(to) || to < from) {
-      return res.status(400).json({ error: 'to_episode must be >= from_episode.' });
+    // Single episode is allowed when from === to
+    if (to < from) {
+      return res.status(400).json({ error: 'to_episode must be >= from_episode (use same number for a single episode).' });
     }
     if (to - from > 500) {
       return res.status(400).json({ error: 'Maximum 500 episodes per import request.' });

@@ -81,16 +81,34 @@ export function EpisodeManager({
     }
   };
 
+  const handleFromChange = (raw: string) => {
+    const next = parseInt(raw, 10);
+    const from = !next || next < 1 ? 1 : next;
+    setZokoFrom(from);
+    // Keep To >= From so single-episode (From === To) stays valid when raising From
+    setZokoTo((prev) => (prev < from ? from : prev));
+  };
+
+  const handleToChange = (raw: string) => {
+    const next = parseInt(raw, 10);
+    const to = !next || next < 1 ? 1 : next;
+    setZokoTo(to);
+  };
+
   const handleZokoImport = async () => {
     if (!selectedAnime?.external_id) {
       showToast('Missing MAL ID', 'This anime has no external_id (MAL ID).', 'destructive');
       return;
     }
-    const from = Number(zokoFrom);
-    const to = Number(zokoTo);
-    if (!from || !to || from < 1 || to < from) {
-      showToast('Invalid range', 'Set a valid From / To episode range.', 'destructive');
+    let from = Number(zokoFrom);
+    let to = Number(zokoTo);
+    if (!from || isNaN(from) || from < 1) {
+      showToast('Invalid range', 'From episode must be a number >= 1.', 'destructive');
       return;
+    }
+    // Single episode: if To is missing/invalid or below From, treat as From only
+    if (!to || isNaN(to) || to < from) {
+      to = from;
     }
     if (to - from > 500) {
       showToast('Range too large', 'Import at most 500 episodes at a time.', 'destructive');
@@ -114,9 +132,11 @@ export function EpisodeManager({
         tracks,
         overwrite: zokoOverwrite,
       });
+      const rangeLabel =
+        from === to ? `episode ${from}` : `episodes ${from}–${to}`;
       showToast(
         'ZokoAnime Import Done',
-        `Created ${res.episodes_created}, updated ${res.episodes_updated}, servers +${res.servers_added}`
+        `${rangeLabel}: created ${res.episodes_created}, updated ${res.episodes_updated}, servers +${res.servers_added}`
       );
       loadEpisodesForAnime(selectedAnime);
     } catch (err: any) {
@@ -210,7 +230,10 @@ export function EpisodeManager({
           <span className="text-sm font-bold text-white">Import from ZokoAnime</span>
         </div>
         <p className="text-xs text-slate-400">
-          Creates episodes + ZokoAnime embed servers for MAL #{selectedAnime.external_id}
+          Creates episodes + ZokoAnime embed servers for MAL #{selectedAnime.external_id}.{' '}
+          <span className="text-cyan-300/90">
+            Set From and To to the same number to import a single episode (e.g. 5 → 5).
+          </span>
         </p>
         <div className="flex flex-wrap items-end gap-3">
           <div>
@@ -219,7 +242,7 @@ export function EpisodeManager({
               type="number"
               min={1}
               value={zokoFrom}
-              onChange={(e) => setZokoFrom(parseInt(e.target.value, 10) || 1)}
+              onChange={(e) => handleFromChange(e.target.value)}
               className="w-20 rounded-xl border border-white/10 bg-[#08080c] px-2.5 py-2 text-sm font-bold text-white focus:border-cyan-500 focus:outline-none"
             />
           </div>
@@ -227,9 +250,9 @@ export function EpisodeManager({
             <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">To</label>
             <input
               type="number"
-              min={1}
+              min={zokoFrom}
               value={zokoTo}
-              onChange={(e) => setZokoTo(parseInt(e.target.value, 10) || 1)}
+              onChange={(e) => handleToChange(e.target.value)}
               className="w-20 rounded-xl border border-white/10 bg-[#08080c] px-2.5 py-2 text-sm font-bold text-white focus:border-cyan-500 focus:outline-none"
             />
           </div>
@@ -255,7 +278,11 @@ export function EpisodeManager({
             disabled={isImportingZoko}
             className="ml-auto flex items-center gap-2 rounded-full bg-cyan-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-cyan-500 disabled:opacity-50"
           >
-            {isImportingZoko ? 'Importing…' : 'Import Episodes'}
+            {isImportingZoko
+              ? 'Importing…'
+              : zokoFrom === zokoTo
+                ? `Import Episode ${zokoFrom}`
+                : `Import ${zokoTo - zokoFrom + 1} Episodes`}
           </button>
         </div>
       </div>
